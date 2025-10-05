@@ -1,0 +1,319 @@
+.TH KMIM 1 "October 2025" "KMIM" "User Commands"
+.SH NAME
+kmim \- Kernel Module Integrity Monitor for Linux Systems
+.SH SYNOPSIS
+.B kmim
+.BR baseline
+.I BASELINE_FILE
+.br
+.B kmim
+.BR scan
+.I BASELINE_FILE
+.br
+.B kmim
+.BR show
+.I MODULE_NAME
+.br
+.B kmim
+.BR syscalls
+.RB [ \-\-limit
+.IR LIMIT ]
+.SH DESCRIPTION
+.B kmim
+is a security tool designed to monitor and verify the integrity of kernel modules in Linux systems. It helps system administrators and security professionals detect potential rootkits, malicious kernel modules, and supply chain tampering attempts by maintaining and verifying cryptographic hashes and metadata of kernel modules.
+.PP
+The tool operates by creating a baseline of the current kernel module state and later comparing the live system against this baseline to detect any modifications or anomalies. It features a rich, color-coded command-line interface for enhanced usability and professional presentation.
+.SH COMMANDS
+.TP
+.BR baseline " " \fIBASELINE_FILE\fR
+Create a baseline snapshot of the current kernel module state and save it to the specified JSON file. The baseline includes:
+.RS
+.IP \[bu] 2
+Module names and sizes
+.IP \[bu]
+Load addresses in memory
+.IP \[bu]
+SHA256 hashes of module files
+.IP \[bu]
+Module file paths
+.IP \[bu]
+Syscall table addresses
+.IP \[bu]
+Compiler information
+.IP \[bu]
+ELF section details
+.RE
+Output format includes both colored console messages and detailed metadata capture.
+.TP
+.BR scan " " \fIBASELINE_FILE\fR
+Compare the current kernel state against a previously created baseline file. This command detects:
+.RS
+.IP \[bu] 2
+New modules not present in the baseline (hidden modules)
+.IP \[bu]
+Missing modules that were in the baseline
+.IP \[bu]
+Modified modules (different hash or size)
+.IP \[bu]
+Changes in module load addresses
+.RE
+Provides both simple text output and rich formatted tables with color-coded status indicators.
+.TP
+.BR show " " \fIMODULE_NAME\fR
+Display detailed information about a specific kernel module, including:
+.RS
+.IP \[bu] 2
+Module size in bytes
+.IP \[bu]
+Current load address in memory
+.IP \[bu]
+SHA256 hash (both full and truncated)
+.IP \[bu]
+Full path to the module file
+.IP \[bu]
+Compiler information (GCC version, etc.)
+.IP \[bu]
+ELF sections (.text, .data, .rodata, etc.)
+.RE
+Shows both simple formatted output and detailed table view.
+.TP
+.BR syscalls " " \fB[\-\-limit \fILIMIT\fB]\fR
+Display syscall addresses from the kernel symbol table. This command:
+.RS
+.IP \[bu] 2
+Lists syscall names and their addresses
+.IP \[bu]
+Shows total count of detected syscalls
+.IP \[bu]
+Supports limiting output with --limit option
+.IP \[bu]
+Provides both simple list and formatted table views
+.RE
+Useful for monitoring syscall table integrity and detecting potential hooks.
+.RS
+.IP \[bu] 2
+Module size in bytes
+.IP \[bu]
+Current load address in memory
+.IP \[bu]
+SHA256 hash of the module file
+.IP \[bu]
+Full path to the module file
+.RE
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show help message and exit.
+.TP
+.BR \-\-limit " " \fILIMIT\fR
+(syscalls command only) Limit the number of syscalls displayed. Default is 20.
+.SH COLOR OUTPUT
+KMIM features a rich, color-coded output system:
+.TP
+.B Green
+Success messages, OK status, info notifications
+.TP
+.B Yellow
+Warnings, syscall names, memory addresses
+.TP
+.B Red
+Errors, modified modules, critical issues
+.TP
+.B Blue
+Metadata, counts, summaries
+.TP
+.B Cyan
+Property labels, headers
+.TP
+.B Magenta
+Hash values
+.SH FILES
+.TP
+.I kmim_baseline.json
+Default baseline file created by the baseline command.
+.TP
+.I /proc/modules
+Source of current kernel module information
+.TP
+.I /proc/kallsyms
+Source of kernel symbol and syscall addresses
+.TP
+.I /lib/modules/
+Directory containing kernel module files
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+Various errors
+.SH EXAMPLES
+.TP
+Create a baseline:
+.B sudo kmim baseline kmim_baseline.json
+.TP
+Scan against baseline:
+.B sudo kmim scan kmim_baseline.json
+.TP
+Show module details:
+.B sudo kmim show nvidia
+.TP
+Display syscall addresses:
+.B sudo kmim syscalls --limit 10
+.SH ENHANCED OUTPUT EXAMPLES
+.SS Baseline Creation
+.nf
+$ sudo kmim baseline kmim_baseline.json
+[OK] Captured baseline of 127 modules, 468 syscall addresses
+Saved to kmim_baseline.json
+Baseline created successfully
+Modules captured: 127
+Syscalls captured: 468
+.fi
+.SS Scan Results
+.nf
+$ sudo kmim scan kmim_baseline.json
+[INFO] All modules match baseline
+[INFO] No hidden modules
+Summary: 127 OK, 0 Suspicious
+
+        Scan Results         
+┏━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
+┃ Module ┃ Status ┃ Details ┃
+┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
+│ nvidia │ OK     │         │
+└────────┴────────┴─────────┘
+.fi
+.SS Module Information
+.nf
+$ sudo kmim show nvidia
+Module: nvidia
+Size: 54308864
+Addr: 0xffffffffc0000000
+Hash: sha256:70c827b...
+Compiler: GCC 12.2
+ELF Sections: .text, .data, .rodata
+
+         Module: nvidia          
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Property    ┃ Value             ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ Size        │ 54308864          │
+│ Compiler    │ GCC 12.2          │
+└─────────────┴───────────────────┘
+.fi
+.SS Syscall Addresses
+.nf
+$ sudo kmim syscalls --limit 5
+Syscall Addresses (468 total):
+__x64_sys_read: ffffffffa940c3e0
+__x64_sys_write: ffffffffa945a8e0
+... and 463 more
+
+    Syscall Addresses (first 5)     
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ Syscall Name   ┃ Address          ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ __x64_sys_read │ ffffffffa940c3e0 │
+└────────────────┴──────────────────┘
+.fi
+.SH SECURITY
+KMIM operates in read-only mode and does not write to kernel memory. All eBPF programs are verified by the kernel's verifier. Root privileges are required for eBPF operations.
+.SH AUTHOR
+Software Security Lab (HPRCSE Group)
+.SH OUTPUT FORMAT
+.SS Baseline File Format
+The baseline JSON file contains:
+.PP
+.nf
+{
+    "timestamp": "ISO-8601 timestamp",
+    "modules": {
+        "module_name": {
+            "size": size_in_bytes,
+            "addr": "hex_load_address",
+            "hash": "sha256_hash",
+            "path": "full_path_to_module"
+        }
+    }
+}
+.fi
+.PP
+.SS Scan Output
+The scan command produces a table showing:
+.IP \[bu] 2
+Module name
+.IP \[bu]
+Status (OK or type of issue)
+.IP \[bu]
+Details about any detected changes
+.PP
+.SS Show Output
+The show command displays a table with:
+.IP \[bu] 2
+Size in bytes
+.IP \[bu]
+Load address in hexadecimal
+.IP \[bu]
+SHA256 hash of the module file
+.IP \[bu]
+Full path to the module file
+.SH EXAMPLES
+.PP
+Create a baseline:
+.PP
+.nf
+    $ sudo kmim baseline kmim_baseline.json
+    Found 127 kernel modules
+    Baseline saved to kmim_baseline.json
+.fi
+.PP
+Scan against baseline:
+.PP
+.nf
+    $ sudo kmim scan kmim_baseline.json
+    Scan Results
+    Module     Status     Details
+    ext4       OK
+    nvidia     MODIFIED   Hash mismatch
+.fi
+.PP
+Show module details:
+.PP
+.nf
+    $ sudo kmim show nvidia
+    Module: nvidia
+    Size: 54308864
+    Address: 0xffffffffc0000000
+    Hash: 70c827b7b46eceebd8c087ab926d698c6b
+    Path: /lib/modules/...
+.fi
+.SH SECURITY CONSIDERATIONS
+.IP \[bu] 2
+The tool requires root privileges to access kernel module information
+.IP \[bu]
+Baseline files should be stored securely and protected from unauthorized modification
+.IP \[bu]
+Regular scans should be performed to detect potential tampering
+.IP \[bu]
+Changes in module hashes may indicate compromise but could also result from legitimate updates
+.SH FILES
+.TP
+.I /proc/modules
+Source of current kernel module information
+.TP
+.I /lib/modules/
+Directory containing kernel module files
+.TP
+.I kmim_baseline.json
+Default name for baseline files
+.SH BUGS
+Report bugs to: https://github.com/nimishathallapally/kmim/issues
+.SH COPYRIGHT
+Copyright \(co 2025 Nimisha Thallapally. License MIT.
+.SH SEE ALSO
+.BR bpf (2),
+.BR lsmod (8),
+.BR modinfo (8),
+.BR insmod (8),
+.BR rmmod (8)
